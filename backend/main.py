@@ -10,11 +10,25 @@ import tempfile
 import base64
 from typing import Dict, Any
 from cv_analysis import CompositionAnalyzer
+from ai_feedback import PhotographyFeedbackGenerator
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 app = FastAPI(title="FrameCheck API", description="AI-powered photo composition analysis")
 
 # Initialize composition analyzer
 analyzer = CompositionAnalyzer()
+
+# Initialize AI feedback generator (will handle missing API key gracefully)
+try:
+    ai_feedback = PhotographyFeedbackGenerator()
+    ai_available = ai_feedback.test_connection()
+except Exception as e:
+    print(f"Warning: AI feedback unavailable - {e}")
+    ai_feedback = None
+    ai_available = False
 
 # Enable CORS for frontend communication
 app.add_middleware(
@@ -80,6 +94,41 @@ async def analyze_image(file: UploadFile = File(...)):
             rule_of_thirds_base64 = analyzer.image_to_base64(rule_of_thirds_results["grid_image"])
             leading_lines_base64 = analyzer.image_to_base64(leading_lines_results["lines_image"])
             
+            # Generate AI feedback (always provide feedback, either from AI or fallback)
+            analysis_for_ai = {
+                "rule_of_thirds": rule_of_thirds_results["subject_analysis"],
+                "leading_lines": {
+                    "total_lines": leading_lines_results["total_lines"],
+                    "diagonal_lines": leading_lines_results["diagonal_lines"],
+                    "corner_lines": leading_lines_results["corner_lines"],
+                    "has_strong_leading_lines": leading_lines_results["has_strong_leading_lines"]
+                }
+            }
+            
+            if ai_available and ai_feedback:
+                try:
+                    ai_feedback_result = ai_feedback.generate_feedback(analysis_for_ai, file.filename)
+                except Exception as e:
+                    print(f"AI feedback generation failed: {e}")
+                    # Fallback to local feedback generation
+                    fallback_generator = PhotographyFeedbackGenerator.__new__(PhotographyFeedbackGenerator)
+                    ai_feedback_result = {
+                        "success": False,
+                        "error": str(e),
+                        "feedback": fallback_generator._get_fallback_feedback(analysis_for_ai),
+                        "source": "fallback"
+                    }
+            else:
+                # Use fallback feedback when AI is not available
+                print("Using fallback feedback (no OpenAI API key)")
+                fallback_generator = PhotographyFeedbackGenerator.__new__(PhotographyFeedbackGenerator)
+                ai_feedback_result = {
+                    "success": False,
+                    "error": "OpenAI API not configured",
+                    "feedback": fallback_generator._get_fallback_feedback(analysis_for_ai),
+                    "source": "fallback"
+                }
+            
             # Prepare analysis summary (convert numpy types to Python types for JSON serialization)
             analysis_summary = {
                 "rule_of_thirds": {
@@ -104,6 +153,7 @@ async def analyze_image(file: UploadFile = File(...)):
                     "height": pil_image.size[1]
                 },
                 "analysis_summary": analysis_summary,
+                "ai_feedback": ai_feedback_result,
                 "images": {
                     "original": original_base64,
                     "analysis_overlay": overlay_base64,
