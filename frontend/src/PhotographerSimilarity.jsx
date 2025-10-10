@@ -48,7 +48,7 @@ const PhotographerSimilarity = () => {
 
     try {
       // Send to FastAPI endpoint using axios
-      const response = await axios.post('http://localhost:8000/find-similar-photographers/', formData, {
+      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/find-similar-photographers/`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
