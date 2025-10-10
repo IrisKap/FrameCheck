@@ -1,20 +1,28 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ImageUploader from './ImageUploader'
 import PhotographerSimilarity from './PhotographerSimilarity'
 import CropSuggestion from './CropSuggestion'
 import Features from './Features'
 import About from './About'
+import { trackPageView, trackNavigation } from './analytics'
 import './App.css'
 
 function App() {
   const [activeTab, setActiveTab] = useState('analysis');
   const [currentPage, setCurrentPage] = useState('home');
 
+  // Track page views
+  useEffect(() => {
+    trackPageView(currentPage === 'home' ? 'Home' : currentPage);
+  }, [currentPage]);
+
   const handleTabChange = (tab) => {
+    const previousTab = activeTab;
     setActiveTab(tab);
+    trackNavigation(previousTab, tab);
     // Scroll to the tools section
     setTimeout(() => {
-      document.getElementById('tools-section')?.scrollIntoView({ 
+      document.getElementById('tools-section')?.scrollIntoView({
         behavior: 'smooth',
         block: 'start'
       });
@@ -39,10 +47,12 @@ function App() {
   };
 
   const handleFeaturesClick = () => {
+    trackNavigation(currentPage, 'features');
     setCurrentPage('features');
   };
 
   const handleAboutClick = () => {
+    trackNavigation(currentPage, 'about');
     setCurrentPage('about');
   };
 

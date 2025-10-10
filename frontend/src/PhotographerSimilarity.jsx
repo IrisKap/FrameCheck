@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
+import { trackPhotographerSimilarity, trackFeatureUsage } from './analytics';
 
 const PhotographerSimilarity = () => {
   const [files, setFiles] = useState([]);
@@ -58,14 +59,17 @@ const PhotographerSimilarity = () => {
         console.log('Similarity analysis successful:', response.data);
         setSimilarityResults(response.data);
         setError(null);
+        trackPhotographerSimilarity(files.length, true);
+        trackFeatureUsage('photographer_similarity');
       } else {
         setError('Similarity analysis failed: ' + response.data.message);
+        trackPhotographerSimilarity(files.length, false);
       }
       
     } catch (error) {
       console.error('Upload failed:', error);
       setError('Upload failed: ' + (error.response?.data?.detail || error.message));
-      
+      trackPhotographerSimilarity(files.length, false);
     } finally {
       setIsUploading(false);
     }

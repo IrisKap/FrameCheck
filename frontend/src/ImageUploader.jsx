@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
+import { trackImageAnalysis, trackFeatureUsage } from './analytics';
 
 const ImageUploader = () => {
   // useState hooks to manage file state and preview URL
@@ -54,14 +55,17 @@ const ImageUploader = () => {
         console.log('Analysis successful:', response.data);
         setAnalysisResults(response.data);
         setError(null);
+        trackImageAnalysis('composition_analysis', true);
+        trackFeatureUsage('composition_analysis');
       } else {
         setError('Analysis failed: ' + response.data.message);
+        trackImageAnalysis('composition_analysis', false);
       }
       
     } catch (error) {
       console.error('Upload failed:', error);
       setError('Upload failed: ' + (error.response?.data?.detail || error.message));
-      
+      trackImageAnalysis('composition_analysis', false);
     } finally {
       setIsUploading(false);
     }

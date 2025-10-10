@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
+import { trackCropSuggestion, trackFeatureUsage } from './analytics';
 
 const CropSuggestion = () => {
   const [file, setFile] = useState(null);
@@ -43,11 +44,15 @@ const CropSuggestion = () => {
       if (response.data.success) {
         setCropResults(response.data);
         setError(null);
+        trackCropSuggestion(true);
+        trackFeatureUsage('crop_suggestion');
       } else {
         setError('Crop suggestion failed: ' + response.data.message);
+        trackCropSuggestion(false);
       }
     } catch (error) {
       setError('Crop suggestion failed: ' + (error.response?.data?.detail || error.message));
+      trackCropSuggestion(false);
     } finally {
       setIsProcessing(false);
     }
