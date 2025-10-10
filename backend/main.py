@@ -33,37 +33,51 @@ except Exception as e:
     ai_feedback = None
     ai_available = False
 
-# Initialize photographer similarity finder
-try:
-    similarity_finder = PhotographerSimilarityFinder()
-    similarity_available = True
-except Exception as e:
-    print(f"Warning: Photographer similarity unavailable - {e}")
-    similarity_finder = None
-    similarity_available = False
+# Initialize services with lazy loading to save memory
+similarity_finder = None
+similarity_available = False
+image_deskewer = None
+deskew_available = False
+image_crop_suggester = None
+crop_available = False
 
-# Initialize image deskewer
-try:
-    image_deskewer = ImageDeskewer()
-    deskew_available = True
-except Exception as e:
-    print(f"Warning: Image deskew unavailable - {e}")
-    image_deskewer = None
-    deskew_available = False
+def get_similarity_finder():
+    global similarity_finder, similarity_available
+    if similarity_finder is None and not similarity_available:
+        try:
+            similarity_finder = PhotographerSimilarityFinder()
+            similarity_available = True
+        except Exception as e:
+            print(f"Warning: Photographer similarity unavailable - {e}")
+            similarity_available = False
+    return similarity_finder
 
-# Initialize image crop suggester
-try:
-    image_crop_suggester = ImageCropSuggester()
-    crop_available = True
-except Exception as e:
-    print(f"Warning: Image crop suggestion unavailable - {e}")
-    image_crop_suggester = None
-    crop_available = False
+def get_image_deskewer():
+    global image_deskewer, deskew_available
+    if image_deskewer is None and not deskew_available:
+        try:
+            image_deskewer = ImageDeskewer()
+            deskew_available = True
+        except Exception as e:
+            print(f"Warning: Image deskew unavailable - {e}")
+            deskew_available = False
+    return image_deskewer
+
+def get_image_crop_suggester():
+    global image_crop_suggester, crop_available
+    if image_crop_suggester is None and not crop_available:
+        try:
+            image_crop_suggester = ImageCropSuggester()
+            crop_available = True
+        except Exception as e:
+            print(f"Warning: Image crop suggestion unavailable - {e}")
+            crop_available = False
+    return image_crop_suggester
 
 # Enable CORS for frontend communication
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # React dev server
+    allow_origins=["http://localhost:5173", "https://framecheck.onrender.com"],  # React dev server and production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -238,6 +252,7 @@ async def find_similar_photographers(files: List[UploadFile] = File(...)):
         if len(files) > 4:
             raise HTTPException(status_code=400, detail="Maximum 4 images allowed")
         
+        similarity_finder = get_similarity_finder()
         if not similarity_available or not similarity_finder:
             raise HTTPException(status_code=503, detail="Photographer similarity service unavailable")
         
@@ -324,6 +339,7 @@ async def deskew_image(file: UploadFile = File(...), subject_center_x: Optional[
         if not file.content_type.startswith('image/'):
             raise HTTPException(status_code=400, detail="File must be an image")
         
+        image_deskewer = get_image_deskewer()
         if not deskew_available or not image_deskewer:
             raise HTTPException(status_code=503, detail="Image deskew service unavailable")
         
@@ -408,6 +424,7 @@ async def suggest_crop(file: UploadFile = File(...), subject_center_x: Optional[
         if not file.content_type.startswith('image/'):
             raise HTTPException(status_code=400, detail="File must be an image")
         
+        image_crop_suggester = get_image_crop_suggester()
         if not crop_available or not image_crop_suggester:
             raise HTTPException(status_code=503, detail="Image crop suggestion service unavailable")
         
